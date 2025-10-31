@@ -17,6 +17,8 @@
   */
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
+#include <stdbool.h>
+
 #include "main.h"
 #include "usart.h"
 #include "gpio.h"
@@ -58,11 +60,41 @@ void SystemClock_Config(void);
 
 /* USER CODE END 0 */
 
-struct LED
+typedef struct LED
 {
 	GPIO_TypeDef *port;
 	uint16_t      pin;
-};
+} LED;
+
+typedef enum State
+{
+	STATE_START,
+	STATE_MOVE_LEFT,
+	STATE_MOVE_RIGHT
+} State;
+
+typedef struct Press
+{
+	uint8_t pressing_this_frame;
+	uint8_t pressing_last_frame;
+	uint8_t just_pressed;
+	uint8_t just_released;
+} Press;
+
+void update_press(Press *press, uint8_t pressing)
+{
+	press->pressing_last_frame = press->pressing_this_frame;
+	press->pressing_this_frame = pressing;
+
+	press->just_pressed  =  press->pressing_this_frame && !press->pressing_last_frame;
+	press->just_released = !press->pressing_this_frame &&  press->pressing_last_frame;
+}
+
+uint8_t is_running   = 0;
+uint8_t player1_turn = 0;
+
+uint8_t player1_score = 0;
+uint8_t player2_score = 0;
 
 /**
   * @brief  The application entry point.
@@ -70,7 +102,7 @@ struct LED
   */
 int main(void)
 {
-
+	State state = STATE_START;
   /* USER CODE BEGIN 1 */
 
   /* USER CODE END 1 */
@@ -96,7 +128,7 @@ int main(void)
   MX_USART2_UART_Init();
   /* USER CODE BEGIN 2 */
 
-	struct LED LEDS[8] = {
+	LED LEDS[8] = {
 		{ LED1_GPIO_Port, LED1_Pin },
 		{ LED2_GPIO_Port, LED2_Pin },
 		{ LED3_GPIO_Port, LED3_Pin },
@@ -109,11 +141,72 @@ int main(void)
 
   /* USER CODE END 2 */
 
+  Press l_press, r_press;
+
+  uint16_t hit_timer = 200;
+  uint16_t hit_timer_decrement = 50;
+
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
     /* USER CODE END WHILE */
+
+	uint16_t is_pressing_left  = !HAL_GPIO_ReadPin(L_button_GPIO_Port, L_button_Pin);
+	uint16_t is_pressing_right = !HAL_GPIO_ReadPin(R_button_GPIO_Port, R_button_Pin);
+	update_press(&l_press, is_pressing_left);
+	update_press(&r_press, is_pressing_right);
+
+	uint16_t ball_position;
+
+	switch (state)
+	{
+		case STATE_START:
+		{
+			bool both_pressed = l_press.just_pressed && r_press.just_pressed;
+			if (!both_pressed)
+			{
+				if (l_press.just_pressed)
+				{
+					state = STATE_MOVE_RIGHT;
+					ball_position = 0;
+				}
+				else if (r_press.just_pressed)
+				{
+					state = STATE_MOVE_LEFT;
+					ball_position = 7;
+				}
+			}
+			break;
+		}
+		case STATE_MOVE_LEFT:
+		{
+			ball_position--;
+			if (ball_position == 0)
+			{
+				state = STATE_MOVE_RIGHT;
+				if (hit_timer > hit_timer_decrement) hit_timer -= hit_timer_decrement;
+			}
+			break;
+		}
+		case STATE_MOVE_RIGHT:
+		{
+			ball_position++;
+			if (ball_position == 7)
+			{
+				state = STATE_MOVE_LEFT;
+				if (hit_timer > hit_timer_decrement) hit_timer -= hit_timer_decrement;
+			}
+			break;
+		}
+	}
+
+	if (state != STATE_START)
+	{
+		HAL_GPIO_WritePin(LEDS[ball_position].port, LEDS[ball_position].pin, GPIO_PIN_SET);
+		HAL_Delay(hit_timer);
+		HAL_GPIO_WritePin(LEDS[ball_position].port, LEDS[ball_position].pin, GPIO_PIN_RESET);
+	}
 
 	// for (int i = 0; i < 8; i++)
 	// {
@@ -129,11 +222,8 @@ int main(void)
 	// 	HAL_GPIO_WritePin(LEDS[8 - i].port, LEDS[8 - i].pin, GPIO_PIN_RESET);
 	// }
 
-	uint16_t left  = HAL_GPIO_ReadPin(L_button_GPIO_Port, L_button_Pin);
-	uint16_t right = HAL_GPIO_ReadPin(R_button_GPIO_Port, R_button_Pin);
-
-	HAL_GPIO_WritePin(LEDS[0].port, LEDS[0].pin, left  ? GPIO_PIN_RESET : GPIO_PIN_SET);
-	HAL_GPIO_WritePin(LEDS[7].port, LEDS[7].pin, right ? GPIO_PIN_RESET : GPIO_PIN_SET);
+	// HAL_GPIO_WritePin(LEDS[0].port, LEDS[0].pin, is_pressing_left  ? GPIO_PIN_RESET : GPIO_PIN_SET);
+	// HAL_GPIO_WritePin(LEDS[7].port, LEDS[7].pin, ris_pressing_rightight ? GPIO_PIN_RESET : GPIO_PIN_SET);
 
     /* USER CODE BEGIN 3 */
   }
