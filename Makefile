@@ -1,10 +1,8 @@
-default: compile
+.PHONY: all clean
 
-compile:
-	pio run
-
-upload:
+all:
 	pio run -t upload
+	pio device monitor --baud 115200
 
 clean:
 	rm -rf .pio
