@@ -129,6 +129,7 @@ void Pingpong_update(Pingpong *this)
 		case STATE_START        : { Pingpong_handle_start        (this); break; }
 		case STATE_MOVE_LEFT    : { Pingpong_handle_move_left    (this); break; }
 		case STATE_MOVE_RIGHT   : { Pingpong_handle_move_right   (this); break; }
+		case STATE_BLINKING     : { Pingpong_handle_blinking     (this); break; }
 		case STATE_SCORE_DISPLAY: { Pingpong_handle_score_display(this); break; }
 	}
 }
@@ -164,11 +165,17 @@ void Pingpong_handle_start(Pingpong *this)
 	led_set_state_all(0);
 }
 
+void Pingpong_scored(Pingpong *this, uint8_t *score)
+{
+	(*score)++;
+	this->next_state = STATE_BLINKING;
+}
+
 void Pingpong_handle_move_left(Pingpong *this)
 {
 	Pingpong_draw_ball(this);
 	bool at_edge = this->ball_position == 0;
-	if (interrupt_occurred_whilst_waiting(&l_button_pressed, this->ball_delay_ms, at_edge))
+	if (interrupt_occurred_whilst_waiting(&l_button_pressed, this->ball_delay_ms, true))
 	{
 		if (at_edge)
 		{
@@ -177,13 +184,16 @@ void Pingpong_handle_move_left(Pingpong *this)
 			Pingpong_ball_speed_increase(this);
 			return;
 		}
+		else
+		{
+			Pingpong_scored(this, &this->r_score);
+		}
 	}
 	else
 	{
 		if (at_edge)
 		{
-			this->r_score++;
-			this->next_state = STATE_SCORE_DISPLAY;
+			Pingpong_scored(this, &this->r_score);
 		}
 	}
 	this->ball_position--;
@@ -193,7 +203,7 @@ void Pingpong_handle_move_right(Pingpong *this)
 {
 	Pingpong_draw_ball(this);
 	bool at_edge = this->ball_position == 7;
-	if (interrupt_occurred_whilst_waiting(&r_button_pressed, this->ball_delay_ms, at_edge))
+	if (interrupt_occurred_whilst_waiting(&r_button_pressed, this->ball_delay_ms, true))
 	{
 		if (at_edge)
 		{
@@ -202,16 +212,31 @@ void Pingpong_handle_move_right(Pingpong *this)
 			Pingpong_ball_speed_increase(this);
 			return;
 		}
+		else
+		{
+			Pingpong_scored(this, &this->l_score);
+		}
 	}
 	else
 	{
 		if (at_edge)
 		{
-			this->l_score++;
-			this->next_state = STATE_SCORE_DISPLAY;
+			Pingpong_scored(this, &this->l_score);
 		}
 	}
 	this->ball_position++;
+}
+
+void Pingpong_handle_blinking(Pingpong *this)
+{
+	for (uint8_t i = 0; i < 5; i++)
+	{
+		led_set_state_all(1);
+		HAL_Delay(50);
+		led_set_state_all(0);
+		HAL_Delay(50);
+	}
+	this->next_state = STATE_SCORE_DISPLAY;
 }
 
 void Pingpong_handle_score_display(Pingpong *this)

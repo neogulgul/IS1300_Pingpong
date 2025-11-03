@@ -9,6 +9,7 @@ typedef enum State
 	STATE_START,
 	STATE_MOVE_LEFT,
 	STATE_MOVE_RIGHT,
+	STATE_BLINKING,
 	STATE_SCORE_DISPLAY
 } State;
 
@@ -47,6 +48,7 @@ void Pingpong_serve_from_the_right(Pingpong *this);
 void Pingpong_handle_start        (Pingpong *this);
 void Pingpong_handle_move_left    (Pingpong *this);
 void Pingpong_handle_move_right   (Pingpong *this);
+void Pingpong_handle_blinking     (Pingpong *this);
 void Pingpong_handle_score_display(Pingpong *this);
 void Pingpong_draw_ball           (Pingpong *this);
 bool Pingpong_has_a_winner        (Pingpong *this);
