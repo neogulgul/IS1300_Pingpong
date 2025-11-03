@@ -31,8 +31,6 @@ typedef struct Pingpong
 	uint16_t ball_delay_ms;
 } Pingpong;
 
-void sleep(uint32_t ms);
-
 void led_set_state(uint8_t led_index, bool state);
 void led_set_state_all(bool state);
 
